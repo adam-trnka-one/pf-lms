@@ -1,0 +1,100 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  firstName         String
+  lastName          String
+  username          String?   @unique
+  password          String
+  status            String    @default("active") // active, invited, inactive
+  role              String    @default("user") // user, admin
+  company           String?
+  phone             String?
+  title             String?
+  avatar            String?
+  invitationCode    String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  permissions       Json      @default("{\"canAccessCourses\": true, \"canTakeExams\": true, \"canDownloadCertificates\": true}")
+  socialMedia       Json?
+  enrolledCourses   CourseEnrollment[]
+  instructedCourses Course[]
+}
+
+model Course {
+  id                  String    @id @default(uuid())
+  title               String
+  description         String
+  status              String    @default("draft") // draft, active, inactive
+  startDate           DateTime
+  enrolledCount       Int       @default(0)
+  image               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  duration            Int       // in minutes
+  certificateValidity Json
+  instructor          User      @relation(fields: [instructorId], references: [id])
+  instructorId        String
+  targetUsers         String[]  // Array of user IDs
+  chapters           Chapter[]
+  enrollments        CourseEnrollment[]
+}
+
+model Chapter {
+  id               String    @id @default(uuid())
+  title            String
+  description      String
+  duration         Int       // in minutes
+  startDate        DateTime
+  startTime        String
+  order            Int
+  meeting          Json?     // {type: string, url: string}
+  video            Json?     // {type: string, url: string}
+  documents        Json?     // Array of {id: string, name: string, url: string, type: string}
+  documentationUrl String?
+  course           Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId         String
+  milestones       Milestone[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Milestone {
+  id          String    @id @default(uuid())
+  title       String
+  description String
+  type        String    // text, questionary
+  enabled     Boolean   @default(true)
+  adminOnly   Boolean   @default(false)
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  questions   Json?     // Array of {question: string, answers: string[], correctAnswer: number}
+  chapter     Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  chapterId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model CourseEnrollment {
+  id          String    @id @default(uuid())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId    String
+  enrolledAt  DateTime  @default(now())
+  completedAt DateTime?
+  progress    Json      // Store milestone completion status
+
+  @@unique([userId, courseId])
+}
